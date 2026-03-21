@@ -2,14 +2,17 @@ package com.softdevcode.ws_finflow.dto;
 
 import java.time.LocalDate;
 
+// ─── CreateGoalRequest ────────────────────────────────────────────────────
+// Usado en POST /goals y PUT /goals/{id}
 public class GoalRequest {
+
     private String title;
     private Double targetAmount;
     private Double currentAmount;
     private LocalDate deadline;
     private String description;
+    private String status;
 
-    // Getters y Setters
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
@@ -24,4 +27,7 @@ public class GoalRequest {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 }
