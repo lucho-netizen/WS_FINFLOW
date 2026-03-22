@@ -2,6 +2,9 @@ package com.softdevcode.ws_finflow.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "users")
 public class User {
@@ -19,6 +22,14 @@ public class User {
     @Setter
     @Getter
     private String username;
+    @Setter
+    @Getter
+    @Column(name = "created_at")
+    private LocalDateTime create_At;
+    @PrePersist
+    public void prePersist() {
+        this.create_At = LocalDateTime.now();
+    }
 
 
 }
