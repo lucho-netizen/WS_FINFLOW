@@ -21,7 +21,12 @@ public class JwtUtil {
     private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
 
     // Generar token
-    public String generateToken(String email) {
+    public String generateToken(String email, boolean longLived) {
+
+        long expiration = longLived
+                ? 1000L * 60 * 60 * 24 * 364  // 30 días mobile
+                : 1000L * 60 * 60 * 5;        // 5 horas web
+
         return Jwts.builder()
                 .setSubject(email)
                 .setIssuedAt(new Date())

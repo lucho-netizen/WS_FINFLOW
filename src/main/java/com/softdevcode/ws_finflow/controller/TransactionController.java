@@ -1,4 +1,4 @@
-package com.softdevcode.ws_finflow.controller;
+/*package com.softdevcode.ws_finflow.controller;
 
 import com.softdevcode.ws_finflow.dto.MonthlyStats;
 import com.softdevcode.ws_finflow.dto.TransactionFilter;
@@ -127,6 +127,143 @@ public class TransactionController {
         filter.setCategoryId(categoryId);
 
         byte[] pdf = service.exportPdf(userId, filter);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"transacciones.pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
+}
+
+ */
+
+package com.softdevcode.ws_finflow.controller;
+
+import com.softdevcode.ws_finflow.dto.MonthlyStats;
+import com.softdevcode.ws_finflow.dto.TransactionFilter;
+import com.softdevcode.ws_finflow.dto.TransactionRequest;
+import com.softdevcode.ws_finflow.dto.TransactionStats;
+import com.softdevcode.ws_finflow.entity.Transaction;
+import com.softdevcode.ws_finflow.entity.User;
+import com.softdevcode.ws_finflow.repository.UserRepository;
+import com.softdevcode.ws_finflow.service.TransactionService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+@RestController
+@RequestMapping("/transactions")
+@CrossOrigin(origins = "*")
+public class TransactionController {
+
+    @Autowired
+    private TransactionService service;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    // Helper — evita repetir el lookup en cada método
+    private Integer getUserId(Authentication auth) {
+        return Math.toIntExact(userRepository.findByEmail(auth.getName())
+                .map(User::getId)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado")));
+    }
+
+    @GetMapping("/recent")
+    public ResponseEntity<List<Transaction>> getRecent(Authentication auth) {
+        return ResponseEntity.ok(service.getRecent(getUserId(auth), 5));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Transaction>> getFiltered(
+            Authentication auth,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String search) {
+
+        TransactionFilter filter = new TransactionFilter();
+        filter.setType(type);
+        filter.setMonth(month);
+        filter.setYear(year);
+        filter.setCategoryId(categoryId);
+        filter.setSearch(search);
+
+        return ResponseEntity.ok(service.getFiltered(getUserId(auth), filter));
+    }
+
+    @PostMapping
+    public ResponseEntity<Transaction> create(
+            Authentication auth,
+            @RequestBody TransactionRequest request) {
+        return ResponseEntity.ok(service.create(getUserId(auth), request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(Authentication auth, @PathVariable Long id) {
+        service.delete(getUserId(auth), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<TransactionStats> getStats(Authentication auth) {
+        return ResponseEntity.ok(service.getStats(getUserId(auth)));
+    }
+
+    @GetMapping("/monthly-stats")
+    public ResponseEntity<List<MonthlyStats>> getMonthlyStats(Authentication auth) {
+        return ResponseEntity.ok(service.getMonthlyStats(getUserId(auth)));
+    }
+
+    @GetMapping("/years")
+    public ResponseEntity<List<Integer>> getAvailableYears(Authentication auth) {
+        return ResponseEntity.ok(service.getAvailableYears(getUserId(auth)));
+    }
+
+    @GetMapping("/export/csv")
+    public ResponseEntity<byte[]> exportCsv(
+            Authentication auth,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String search) {
+
+        TransactionFilter filter = new TransactionFilter();
+        filter.setType(type);
+        filter.setMonth(month);
+        filter.setYear(year);
+        filter.setCategoryId(categoryId);
+        filter.setSearch(search);
+
+        String csv = service.exportCsv(getUserId(auth), filter);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"transacciones.csv\"")
+                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                .body(csv.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @GetMapping("/export/pdf")
+    public ResponseEntity<byte[]> exportPdf(
+            Authentication auth,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Long categoryId) {
+
+        TransactionFilter filter = new TransactionFilter();
+        filter.setType(type);
+        filter.setMonth(month);
+        filter.setYear(year);
+        filter.setCategoryId(categoryId);
+
+        byte[] pdf = service.exportPdf(getUserId(auth), filter);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"transacciones.pdf\"")
                 .contentType(MediaType.APPLICATION_PDF)

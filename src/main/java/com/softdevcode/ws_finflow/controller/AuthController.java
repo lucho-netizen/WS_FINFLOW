@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.security.core.Authentication;
 
 @RestController
 @RequestMapping("/auth")
@@ -28,36 +29,43 @@ public class AuthController {
 
     // ── Login ─────────────────────────────────────────────
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request,
+                                   @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType){
+    {
 
-        Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
 
-        if (userOpt.isEmpty()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Usuario no existe"));
+
+            Optional<User> userOpt = userRepository.findByEmail(request.getEmail());
+
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.status(401).body(Map.of("error", "Usuario no existe"));
+            }
+
+            User user = userOpt.get();
+
+            // Verifica contraseña encriptada
+            if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                return ResponseEntity.status(401).body(Map.of("error", "Contraseña incorrecta"));
+            }
+
+            boolean isMobile = "mobile".equalsIgnoreCase(clientType);
+            String token = jwtUtil.generateToken(user.getEmail(), isMobile);
+
+            return ResponseEntity.ok(Map.of(
+                    "token", token,
+                    "user", Map.of(
+                            "id",    user.getId(),
+                            "name",  user.getUsername(),
+                            "email", user.getEmail()
+                    )
+            ));
         }
-
-        User user = userOpt.get();
-
-        // Verifica contraseña encriptada
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            return ResponseEntity.status(401).body(Map.of("error", "Contraseña incorrecta"));
-        }
-
-        String token = jwtUtil.generateToken(user.getEmail());
-
-        return ResponseEntity.ok(Map.of(
-                "token", token,
-                "user", Map.of(
-                        "id",    user.getId(),
-                        "name",  user.getUsername(),
-                        "email", user.getEmail()
-                )
-        ));
     }
 
     // ── Register ──────────────────────────────────────────
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request, @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType) {
+
 
         // Verifica si el email ya existe
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
@@ -80,7 +88,8 @@ public class AuthController {
         userRepository.save(user);
 
         // Genera token directamente — el usuario queda logueado al registrarse
-        String token = jwtUtil.generateToken(user.getEmail());
+        boolean isMobile = "mobile".equalsIgnoreCase(clientType); // ← definido aquí
+        String token = jwtUtil.generateToken(user.getEmail(), isMobile);
 
         return ResponseEntity.ok(Map.of(
                 "token", token,
@@ -89,6 +98,19 @@ public class AuthController {
                         "name",  user.getUsername(),
                         "email", user.getEmail()
                 )
+        ));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> me(Authentication authentication) {
+        String email = authentication.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        return ResponseEntity.ok(Map.of(
+                "id",    user.getId(),
+                "name",  user.getUsername(),
+                "email", user.getEmail()
         ));
     }
 }

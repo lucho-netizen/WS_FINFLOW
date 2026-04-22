@@ -118,12 +118,35 @@ public class TransactionService {
                 .filter(t -> "expense".equals(t.getType()))
                 .mapToDouble(Transaction::getAmount).sum();
 
-        double balance     = totalIncome - totalExpenses;
-        double savingsRate = totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
+        double savingsRate = totalIncome > 0
+                ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
 
-        return new TransactionStats(totalIncome, totalExpenses, balance, savingsRate);
+        // Agrupar por mes "2026-03"
+        Map<String, double[]> byMonth = new TreeMap<>();
+        for (Transaction t : transactions) {
+            if (t.getDate() == null) continue;
+            String month = t.getDate().toLocalDate().toString().substring(0, 7);
+            byMonth.putIfAbsent(month, new double[]{0.0, 0.0});
+            if ("income".equals(t.getType())) byMonth.get(month)[0] += t.getAmount();
+            else byMonth.get(month)[1] += t.getAmount();
+        }
+
+        List<Map<String, Object>> monthlyData = byMonth.entrySet().stream()
+                .map(e -> {
+                    Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("month", e.getKey());
+                    m.put("income", e.getValue()[0]);
+                    m.put("expenses", e.getValue()[1]);
+                    return m;
+                })
+                .collect(Collectors.toList());
+
+        return new TransactionStats(
+                totalIncome, totalExpenses,
+                totalIncome - totalExpenses, savingsRate,
+                monthlyData, List.of()
+        );
     }
-
     // ── Stats mensuales ───────────────────────────────────
     public List<MonthlyStats> getMonthlyStats(Integer userId) {
         List<Transaction> all = repository.findByUserIdOrderByDateDesc(userId);

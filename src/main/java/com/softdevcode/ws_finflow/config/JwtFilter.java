@@ -11,7 +11,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+
 import java.io.IOException;
+import java.util.List;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
@@ -28,23 +30,22 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        System.out.println("→ JwtFilter: " + request.getMethod() + " " + request.getRequestURI());
+
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        System.out.println("→ Auth header: " + authHeader);
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-
+            String token = authHeader.substring(7).trim();
             try {
                 String email = jwtUtil.validateTokenAndGetEmail(token);
-
-                // Crear autenticación en Spring Security
+                System.out.println("→ Token válido, email: " + email);
                 UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(email, null, null);
-
+                        new UsernamePasswordAuthenticationToken(email, null, List.of());
                 SecurityContextHolder.getContext().setAuthentication(auth);
-
             } catch (Exception e) {
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token inválido");
-                return;
+                System.out.println("→ Token inválido: " + e.getMessage());
+                SecurityContextHolder.clearContext();
             }
         }
 
